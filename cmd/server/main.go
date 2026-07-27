@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"net"
+	"github.com/Roman4k-gg/My-Own-Redis/resp"
+	"io"
 )
 
 func main(){
@@ -27,5 +29,18 @@ func handleConnection(conn net.Conn){
 
 	defer conn.Close()
     fmt.Println("New client connected!")
+	r := resp.NewReader(conn)
+	for {
+		val, err := r.Read()
+		if err != nil {
+			if err == io.EOF {
+				fmt.Println("Client disconnected")
+				break
+			}
+			fmt.Println("Error reading from client:", err)
+            break
+		}
+		fmt.Printf("Recived: %+v\n", val)
+	}
 
 }
