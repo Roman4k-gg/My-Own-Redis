@@ -30,6 +30,7 @@ func handleConnection(conn net.Conn){
 	defer conn.Close()
     fmt.Println("New client connected!")
 	r := resp.NewReader(conn)
+	w := resp.NewWriter(conn)
 	for {
 		val, err := r.Read()
 		if err != nil {
@@ -41,6 +42,7 @@ func handleConnection(conn net.Conn){
             break
 		}
 		fmt.Printf("Recived: %+v\n", val)
+		w.WriteString("OK")
 	}
 
 }
