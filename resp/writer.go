@@ -35,3 +35,9 @@ func (w *Writer) WriteBulk(s string) error {
     
     return nil 
 }
+
+func (w *Writer) WriteInt(n int) error {
+	str := strconv.Itoa(n)
+	_, err := w.writer.Write([]byte(":" + str + "\r\n"))
+	return err
+}
