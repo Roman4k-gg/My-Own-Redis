@@ -29,6 +29,11 @@ func (h *Handler) Handle(val resp.Value, w *resp.Writer) error {
 			return w.WriteString("PONG")
 		}
 		return w.WriteBulk(args[0].Str)
+	case "ECHO":
+		if len(args) != 1 {
+			return w.WriteError(fmt.Errorf("ERR wrong number of arguments for 'echo' command"))
+		}
+		return w.WriteBulk(args[0].Str)
 
 	case "SET":
 		if len(args) != 2 {

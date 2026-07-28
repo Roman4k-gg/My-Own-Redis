@@ -2,51 +2,72 @@ package main
 
 import (
 	"fmt"
-	"net"
-	"github.com/Roman4k-gg/My-Own-Redis/resp"
-	"github.com/Roman4k-gg/My-Own-Redis/handler"
-	"github.com/Roman4k-gg/My-Own-Redis/storage"
 	"io"
+	"net"
+	"os"
+	"os/signal"
+	"sync"
+	"syscall"
+
+	"github.com/Roman4k-gg/My-Own-Redis/handler"
+	"github.com/Roman4k-gg/My-Own-Redis/resp"
+	"github.com/Roman4k-gg/My-Own-Redis/storage"
 )
 
 func main() {
 	db := storage.NewStorage()
-
 	cmdHandler := handler.NewHandler(db)
-	listener, err := net.Listen("tcp", ":6379")
 
+	listener, err := net.Listen("tcp", ":6379")
 	if err != nil {
 		panic(err)
 	}
 	defer listener.Close()
+
 	fmt.Println("Server is running on port 6379...")
-	
+
+	var wg sync.WaitGroup
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		<-sigChan
+		fmt.Println("\nShutting down gracefully...")
+		listener.Close()
+	}()
+
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
-			fmt.Println("Error accepting connection:", err)
-			continue
+			select {
+			case <-sigChan:
+				wg.Wait()
+				fmt.Println("Server stopped.")
+				return
+			default:
+				fmt.Println("Error accepting connection:", err)
+				continue
+			}
 		}
 
-		go handleConnection(conn, cmdHandler)
+		wg.Add(1)
+		go handleConnection(conn, cmdHandler, &wg)
 	}
 }
 
-func handleConnection(conn net.Conn, h *handler.Handler) {
+func handleConnection(conn net.Conn, h *handler.Handler, wg *sync.WaitGroup) {
 	defer conn.Close()
-	fmt.Println("New client connected!")
-	
+	defer wg.Done()
+
 	r := resp.NewReader(conn)
 	w := resp.NewWriter(conn)
-	
+
 	for {
 		val, err := r.Read()
 		if err != nil {
 			if err == io.EOF {
-				fmt.Println("Client disconnected")
 				break
 			}
-			fmt.Println("Error reading from client:", err)
 			break
 		}
 		err = h.Handle(val, w)
