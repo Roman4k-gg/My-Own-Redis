@@ -6,16 +6,16 @@ import (
 )
 
 type Item struct {
-	value string
+	value     string
 	expiresAt time.Time
 }
 
 type Storage struct {
-	mu sync.RWMutex
+	mu   sync.RWMutex
 	data map[string]Item
 }
 
-func NewStorage() *Storage{
+func NewStorage() *Storage {
 	return &Storage{
 		data: make(map[string]Item),
 	}
@@ -38,7 +38,6 @@ func (s *Storage) Get(key string) (string, bool) {
 
 	return it.value, true
 }
-
 
 func (s *Storage) Set(key, value string, ttl time.Duration) {
 	s.mu.Lock()
@@ -84,14 +83,14 @@ func (s *Storage) Exists(keys []string) int {
 	return count
 }
 
-func (s * Storage) StartGarbageCollector(){
+func (s *Storage) StartGarbageCollector() {
 	go func() {
 		for {
 			time.Sleep(time.Second * 7)
 
 			s.mu.Lock()
 
-			for key, item  := range s.data {
+			for key, item := range s.data {
 				if !item.expiresAt.IsZero() && time.Now().After(item.expiresAt) {
 					delete(s.data, key)
 				}
@@ -100,4 +99,3 @@ func (s * Storage) StartGarbageCollector(){
 		}
 	}()
 }
-

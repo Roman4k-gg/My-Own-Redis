@@ -2,19 +2,21 @@ package handler
 
 import (
 	"fmt"
+	"github.com/Roman4k-gg/My-Own-Redis/aof"
+	"github.com/Roman4k-gg/My-Own-Redis/resp"
+	"github.com/Roman4k-gg/My-Own-Redis/storage"
 	"strconv"
 	"strings"
 	"time"
-	"github.com/Roman4k-gg/My-Own-Redis/resp"
-	"github.com/Roman4k-gg/My-Own-Redis/storage"
 )
 
 type Handler struct {
 	store *storage.Storage
+	aof   *aof.AOF
 }
 
-func NewHandler(store *storage.Storage) *Handler {
-	return &Handler{store: store}
+func NewHandler(store *storage.Storage, aofFile *aof.AOF) *Handler {
+	return &Handler{store: store, aof: aofFile}
 }
 
 func (h *Handler) Handle(val resp.Value, w *resp.Writer) error {
@@ -38,7 +40,7 @@ func (h *Handler) Handle(val resp.Value, w *resp.Writer) error {
 		return w.WriteBulk(args[0].Str)
 
 	case "SET":
-		if len(args) != 2 && len(args) != 4{
+		if len(args) != 2 && len(args) != 4 {
 			return w.WriteError(fmt.Errorf("ERR wrong number of arguments for 'set' command"))
 		}
 		var ttl time.Duration = 0
@@ -55,6 +57,7 @@ func (h *Handler) Handle(val resp.Value, w *resp.Writer) error {
 
 		}
 		h.store.Set(args[0].Str, args[1].Str, ttl)
+		h.aof.Write(val)
 		return w.WriteString("OK")
 
 	case "GET":
@@ -75,6 +78,7 @@ func (h *Handler) Handle(val resp.Value, w *resp.Writer) error {
 			keys[i] = arg.Str
 		}
 		deletedCount := h.store.Delete(keys)
+		h.aof.Write(val)
 		return w.WriteInt(deletedCount)
 
 	case "EXISTS":
@@ -87,7 +91,6 @@ func (h *Handler) Handle(val resp.Value, w *resp.Writer) error {
 		}
 		existCount := h.store.Exists(keys)
 		return w.WriteInt(existCount)
-
 
 	default:
 		return w.WriteError(fmt.Errorf("ERR unknown command '%s'", command))

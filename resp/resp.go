@@ -8,9 +8,9 @@ import (
 )
 
 type Value struct {
-	Typ string
-	Str string
-	Num int
+	Typ   string
+	Str   string
+	Num   int
 	Array []Value
 }
 
@@ -19,10 +19,10 @@ type Reader struct {
 }
 
 func NewReader(rd io.Reader) *Reader {
-	return &Reader{reader: bufio.NewReader(rd),}
+	return &Reader{reader: bufio.NewReader(rd)}
 }
 
-func (r *Reader) readLine() (line []byte, err error){
+func (r *Reader) readLine() (line []byte, err error) {
 	b, err := r.reader.ReadBytes('\n')
 	if err != nil {
 		return nil, err
@@ -34,14 +34,14 @@ func (r *Reader) Read() (Value, error) {
 	b, err := r.reader.ReadByte()
 	if err != nil {
 		return Value{}, err
-	}	
+	}
 	switch b {
 	case '*':
 		return r.readArray()
 	case '$':
 		return r.readBulk()
 	default:
-		fmt.Printf("uncnown type :%v", string(b))
+		fmt.Printf("unknown type :%v", string(b))
 		return Value{}, nil
 	}
 }
@@ -65,31 +65,31 @@ func (r *Reader) readArray() (Value, error) {
 		array = append(array, val)
 	}
 
-	 return Value{
-        Typ:   "array",
-        Array: array,
-    }, nil
+	return Value{
+		Typ:   "array",
+		Array: array,
+	}, nil
 }
 
-func (r * Reader) readBulk() (Value, error) {
+func (r *Reader) readBulk() (Value, error) {
 	line, err := r.readLine()
 	if err != nil {
 		return Value{}, err
 	}
 
-	cout, _ := strconv.Atoi(string(line))
+	count, _ := strconv.Atoi(string(line))
 
-	buf := make([]byte, cout)
+	buf := make([]byte, count)
 
 	_, err = io.ReadFull(r.reader, buf)
-    if err != nil {
-        return Value{}, err
-    }
+	if err != nil {
+		return Value{}, err
+	}
 
 	r.readLine()
 
-    return Value{
-        Typ: "bulk",
-        Str: string(buf),
-    }, nil
+	return Value{
+		Typ: "bulk",
+		Str: string(buf),
+	}, nil
 }

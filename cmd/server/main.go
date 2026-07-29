@@ -9,6 +9,7 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/Roman4k-gg/My-Own-Redis/aof"
 	"github.com/Roman4k-gg/My-Own-Redis/handler"
 	"github.com/Roman4k-gg/My-Own-Redis/resp"
 	"github.com/Roman4k-gg/My-Own-Redis/storage"
@@ -18,7 +19,20 @@ func main() {
 	db := storage.NewStorage()
 	db.StartGarbageCollector()
 
-	cmdHandler := handler.NewHandler(db)
+	aofFile, err := aof.NewAOF("database.aof")
+	if err != nil {
+		fmt.Println("Error opening AOF:", err)
+		return
+	}
+	defer aofFile.Close()
+
+	cmdHandler := handler.NewHandler(db, aofFile)
+
+	dummyWriter := resp.NewWriter(io.Discard)
+
+	aofFile.Read(func(value resp.Value) {
+		cmdHandler.Handle(value, dummyWriter)
+	})
 
 	listener, err := net.Listen("tcp", ":6379")
 	if err != nil {
