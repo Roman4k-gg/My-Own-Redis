@@ -16,6 +16,8 @@ import (
 
 func main() {
 	db := storage.NewStorage()
+	db.StartGarbageCollector()
+
 	cmdHandler := handler.NewHandler(db)
 
 	listener, err := net.Listen("tcp", ":6379")
@@ -28,11 +30,13 @@ func main() {
 
 	var wg sync.WaitGroup
 	sigChan := make(chan os.Signal, 1)
+	done := make(chan struct{})
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
 	go func() {
 		<-sigChan
 		fmt.Println("\nShutting down gracefully...")
+		close(done)
 		listener.Close()
 	}()
 
@@ -40,7 +44,7 @@ func main() {
 		conn, err := listener.Accept()
 		if err != nil {
 			select {
-			case <-sigChan:
+			case <-done:
 				wg.Wait()
 				fmt.Println("Server stopped.")
 				return
@@ -59,6 +63,8 @@ func handleConnection(conn net.Conn, h *handler.Handler, wg *sync.WaitGroup) {
 	defer conn.Close()
 	defer wg.Done()
 
+	fmt.Println("New client connected!")
+
 	r := resp.NewReader(conn)
 	w := resp.NewWriter(conn)
 
@@ -66,8 +72,10 @@ func handleConnection(conn net.Conn, h *handler.Handler, wg *sync.WaitGroup) {
 		val, err := r.Read()
 		if err != nil {
 			if err == io.EOF {
+				fmt.Println("Client disconnected")
 				break
 			}
+			fmt.Println("Error reading from client:", err)
 			break
 		}
 		err = h.Handle(val, w)

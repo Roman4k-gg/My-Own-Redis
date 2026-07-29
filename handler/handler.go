@@ -2,7 +2,9 @@ package handler
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
+	"time"
 	"github.com/Roman4k-gg/My-Own-Redis/resp"
 	"github.com/Roman4k-gg/My-Own-Redis/storage"
 )
@@ -36,10 +38,23 @@ func (h *Handler) Handle(val resp.Value, w *resp.Writer) error {
 		return w.WriteBulk(args[0].Str)
 
 	case "SET":
-		if len(args) != 2 {
+		if len(args) != 2 && len(args) != 4{
 			return w.WriteError(fmt.Errorf("ERR wrong number of arguments for 'set' command"))
 		}
-		h.store.Set(args[0].Str, args[1].Str)
+		var ttl time.Duration = 0
+		if len(args) == 4 {
+			option := strings.ToUpper(args[2].Str)
+			if option != "EX" {
+				return w.WriteError(fmt.Errorf("ERR syntax error"))
+			}
+			seconds, err := strconv.Atoi(args[3].Str)
+			if err != nil {
+				return w.WriteError(fmt.Errorf("ERR value is not an integer or out of range"))
+			}
+			ttl = time.Duration(seconds) * time.Second
+
+		}
+		h.store.Set(args[0].Str, args[1].Str, ttl)
 		return w.WriteString("OK")
 
 	case "GET":
