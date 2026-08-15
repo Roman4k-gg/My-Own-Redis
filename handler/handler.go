@@ -92,6 +92,16 @@ func (h *Handler) Handle(val resp.Value, w *resp.Writer) error {
 		existCount := h.store.Exists(keys)
 		return w.WriteInt(existCount)
 
+	case "INCR":
+		if len(args) != 1 {
+			return w.WriteError(fmt.Errorf("ERR wrong number of arguments for 'incr' command"))
+		}
+		newVal, err := h.store.Incr(args[0].Str)
+		if err != nil {
+			return w.WriteError(err)
+		}
+		return w.WriteInt(int(newVal))
+
 	default:
 		return w.WriteError(fmt.Errorf("ERR unknown command '%s'", command))
 	}
