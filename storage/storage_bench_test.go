@@ -19,7 +19,6 @@ func BenchmarkSet(b *testing.B) {
 
 func BenchmarkGet(b *testing.B) {
 	s := NewStorage()
-	// Pre-populate.
 	for i := 0; i < 10_000; i++ {
 		s.Set(fmt.Sprintf("key:%d", i), "value", 0)
 	}
@@ -55,7 +54,7 @@ func BenchmarkIncr(b *testing.B) {
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			s.Incr("counter") //nolint:errcheck
+			_, _ = s.Incr("counter")
 		}
 	})
 }
@@ -70,7 +69,6 @@ func BenchmarkDelete(b *testing.B) {
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		// Re-populate every 1000 iterations to keep the benchmark meaningful.
 		if i%1000 == 0 {
 			for _, k := range keys {
 				s.Set(k, "v", 0)

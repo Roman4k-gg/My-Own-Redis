@@ -33,9 +33,11 @@ func main() {
 
 	// Replay AOF to restore state after restart.
 	dummyWriter := resp.NewWriter(io.Discard)
-	aofFile.Read(func(value resp.Value) {
-		cmdHandler.Handle(value, dummyWriter)
-	})
+	if err := aofFile.Read(func(value resp.Value) {
+		_ = cmdHandler.Handle(value, dummyWriter)
+	}); err != nil {
+		fmt.Println("Error replaying AOF:", err)
+	}
 
 	listener, err := net.Listen("tcp", ":6379")
 	if err != nil {
@@ -52,8 +54,8 @@ func main() {
 	go func() {
 		<-sigChan
 		fmt.Println("\nShutting down gracefully...")
-		close(done)        // stop the GC goroutine
-		listener.Close()   // unblock Accept()
+		close(done)          // stop the GC goroutine
+		_ = listener.Close() // unblock Accept()
 	}()
 
 	for {

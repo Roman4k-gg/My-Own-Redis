@@ -30,10 +30,11 @@ func (w *Writer) WriteNull() error {
 
 func (w *Writer) WriteBulk(s string) error {
 	strLen := strconv.Itoa(len(s))
-	w.writer.Write([]byte("$" + strLen + "\r\n"))
-	w.writer.Write([]byte(s + "\r\n"))
-
-	return nil
+	if _, err := w.writer.Write([]byte("$" + strLen + "\r\n")); err != nil {
+		return err
+	}
+	_, err := w.writer.Write([]byte(s + "\r\n"))
+	return err
 }
 
 func (w *Writer) WriteInt(n int) error {

@@ -54,10 +54,9 @@ func (h *Handler) Handle(val resp.Value, w *resp.Writer) error {
 				return w.WriteError(fmt.Errorf("ERR value is not an integer or out of range"))
 			}
 			ttl = time.Duration(seconds) * time.Second
-
 		}
 		h.store.Set(args[0].Str, args[1].Str, ttl)
-		h.aof.Write(val)
+		_ = h.aof.Write(val)
 		return w.WriteString("OK")
 
 	case "GET":
@@ -78,7 +77,7 @@ func (h *Handler) Handle(val resp.Value, w *resp.Writer) error {
 			keys[i] = arg.Str
 		}
 		deletedCount := h.store.Delete(keys)
-		h.aof.Write(val)
+		_ = h.aof.Write(val)
 		return w.WriteInt(deletedCount)
 
 	case "EXISTS":
@@ -100,6 +99,7 @@ func (h *Handler) Handle(val resp.Value, w *resp.Writer) error {
 		if err != nil {
 			return w.WriteError(err)
 		}
+		_ = h.aof.Write(val)
 		return w.WriteInt(int(newVal))
 
 	default:

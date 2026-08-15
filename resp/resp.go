@@ -27,6 +27,9 @@ func (r *Reader) readLine() (line []byte, err error) {
 	if err != nil {
 		return nil, err
 	}
+	if len(b) < 2 {
+		return b, nil
+	}
 	return b[:len(b)-2], nil
 }
 
@@ -41,8 +44,7 @@ func (r *Reader) Read() (Value, error) {
 	case '$':
 		return r.readBulk()
 	default:
-		fmt.Printf("unknown type :%v", string(b))
-		return Value{}, nil
+		return Value{}, fmt.Errorf("unknown type: %s", string(b))
 	}
 }
 
@@ -52,7 +54,10 @@ func (r *Reader) readArray() (Value, error) {
 		return Value{}, err
 	}
 
-	count, _ := strconv.Atoi(string(line))
+	count, err := strconv.Atoi(string(line))
+	if err != nil {
+		return Value{}, err
+	}
 
 	var array []Value
 
@@ -77,7 +82,10 @@ func (r *Reader) readBulk() (Value, error) {
 		return Value{}, err
 	}
 
-	count, _ := strconv.Atoi(string(line))
+	count, err := strconv.Atoi(string(line))
+	if err != nil {
+		return Value{}, err
+	}
 
 	buf := make([]byte, count)
 
@@ -86,7 +94,9 @@ func (r *Reader) readBulk() (Value, error) {
 		return Value{}, err
 	}
 
-	r.readLine()
+	if _, err := r.readLine(); err != nil {
+		return Value{}, err
+	}
 
 	return Value{
 		Typ: "bulk",
