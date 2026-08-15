@@ -16,8 +16,11 @@ import (
 )
 
 func main() {
+	// done is closed on SIGINT/SIGTERM and stops the GC goroutine cleanly.
+	done := make(chan struct{})
+
 	db := storage.NewStorage()
-	db.StartGarbageCollector()
+	db.StartGarbageCollector(done)
 
 	aofFile, err := aof.NewAOF("database.aof")
 	if err != nil {
@@ -28,11 +31,13 @@ func main() {
 
 	cmdHandler := handler.NewHandler(db, aofFile)
 
+	// Replay AOF to restore state after restart.
 	dummyWriter := resp.NewWriter(io.Discard)
-
-	aofFile.Read(func(value resp.Value) {
-		cmdHandler.Handle(value, dummyWriter)
-	})
+	if err := aofFile.Read(func(value resp.Value) {
+		_ = cmdHandler.Handle(value, dummyWriter)
+	}); err != nil {
+		fmt.Println("Error replaying AOF:", err)
+	}
 
 	listener, err := net.Listen("tcp", ":6379")
 	if err != nil {
@@ -44,14 +49,13 @@ func main() {
 
 	var wg sync.WaitGroup
 	sigChan := make(chan os.Signal, 1)
-	done := make(chan struct{})
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
 	go func() {
 		<-sigChan
 		fmt.Println("\nShutting down gracefully...")
-		close(done)
-		listener.Close()
+		close(done)          // stop the GC goroutine
+		_ = listener.Close() // unblock Accept()
 	}()
 
 	for {
@@ -59,7 +63,7 @@ func main() {
 		if err != nil {
 			select {
 			case <-done:
-				wg.Wait()
+				wg.Wait() // wait for in-flight connections to finish
 				fmt.Println("Server stopped.")
 				return
 			default:

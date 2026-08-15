@@ -54,10 +54,9 @@ func (h *Handler) Handle(val resp.Value, w *resp.Writer) error {
 				return w.WriteError(fmt.Errorf("ERR value is not an integer or out of range"))
 			}
 			ttl = time.Duration(seconds) * time.Second
-
 		}
 		h.store.Set(args[0].Str, args[1].Str, ttl)
-		h.aof.Write(val)
+		_ = h.aof.Write(val)
 		return w.WriteString("OK")
 
 	case "GET":
@@ -78,7 +77,7 @@ func (h *Handler) Handle(val resp.Value, w *resp.Writer) error {
 			keys[i] = arg.Str
 		}
 		deletedCount := h.store.Delete(keys)
-		h.aof.Write(val)
+		_ = h.aof.Write(val)
 		return w.WriteInt(deletedCount)
 
 	case "EXISTS":
@@ -91,6 +90,17 @@ func (h *Handler) Handle(val resp.Value, w *resp.Writer) error {
 		}
 		existCount := h.store.Exists(keys)
 		return w.WriteInt(existCount)
+
+	case "INCR":
+		if len(args) != 1 {
+			return w.WriteError(fmt.Errorf("ERR wrong number of arguments for 'incr' command"))
+		}
+		newVal, err := h.store.Incr(args[0].Str)
+		if err != nil {
+			return w.WriteError(err)
+		}
+		_ = h.aof.Write(val)
+		return w.WriteInt(int(newVal))
 
 	default:
 		return w.WriteError(fmt.Errorf("ERR unknown command '%s'", command))

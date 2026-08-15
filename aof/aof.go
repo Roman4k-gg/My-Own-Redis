@@ -32,9 +32,13 @@ func (a *AOF) Write(val resp.Value) error {
 
 	w := resp.NewWriter(a.file)
 
-	w.WriteArray(len(val.Array))
+	if err := w.WriteArray(len(val.Array)); err != nil {
+		return err
+	}
 	for _, arg := range val.Array {
-		w.WriteBulk(arg.Str)
+		if err := w.WriteBulk(arg.Str); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -42,7 +46,9 @@ func (a *AOF) Write(val resp.Value) error {
 func (a *AOF) Read(callback func(value resp.Value)) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	a.file.Seek(0, 0)
+	if _, err := a.file.Seek(0, 0); err != nil {
+		return err
+	}
 	reader := resp.NewReader(a.file)
 	for {
 		val, err := reader.Read()
