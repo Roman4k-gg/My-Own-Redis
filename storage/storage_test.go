@@ -7,8 +7,6 @@ import (
 	"time"
 )
 
-// --- Set / Get ---
-
 func TestSetAndGet(t *testing.T) {
 	s := NewStorage()
 	s.Set("key", "value", 0)
@@ -41,13 +39,10 @@ func TestOverwrite(t *testing.T) {
 	}
 }
 
-// --- TTL / Expiry ---
-
 func TestSetWithTTLExpires(t *testing.T) {
 	s := NewStorage()
 	s.Set("k", "v", 50*time.Millisecond)
 
-	// Key should be visible right after set.
 	if _, ok := s.Get("k"); !ok {
 		t.Fatal("key should exist immediately after Set with TTL")
 	}
@@ -69,7 +64,6 @@ func TestSetWithZeroTTLNeverExpires(t *testing.T) {
 	}
 }
 
-// --- Delete ---
 
 func TestDelete(t *testing.T) {
 	s := NewStorage()
@@ -85,7 +79,6 @@ func TestDelete(t *testing.T) {
 	}
 }
 
-// --- Exists ---
 
 func TestExists(t *testing.T) {
 	s := NewStorage()
@@ -98,13 +91,10 @@ func TestExists(t *testing.T) {
 
 	time.Sleep(100 * time.Millisecond)
 
-	// "y" should have expired
 	if n := s.Exists([]string{"x", "y"}); n != 1 {
 		t.Fatalf("expected 1 key after TTL expiry, got %d", n)
 	}
 }
-
-// --- INCR ---
 
 func TestIncrNewKey(t *testing.T) {
 	s := NewStorage()
@@ -150,16 +140,12 @@ func TestIncrNegativeValue(t *testing.T) {
 	}
 }
 
-// --- GC ---
 
 func TestGarbageCollector(t *testing.T) {
 	s := NewStorage()
 	done := make(chan struct{})
-	// Override interval is not possible without changing the signature,
-	// so we call collectExpired() directly to test the logic.
-
 	s.Set("expired", "v", 1*time.Nanosecond)
-	time.Sleep(5 * time.Millisecond) // ensure TTL has passed
+	time.Sleep(5 * time.Millisecond)
 
 	s.collectExpired()
 
@@ -167,15 +153,9 @@ func TestGarbageCollector(t *testing.T) {
 		t.Fatal("expected key to be collected by GC")
 	}
 
-	// Ensure the goroutine stops cleanly.
 	s.StartGarbageCollector(done)
 	close(done)
 }
-
-// --- Concurrency (race detector) ---
-
-// TestConcurrentReadWrite hammers the storage with concurrent goroutines.
-// Run with: go test -race ./storage/...
 func TestConcurrentReadWrite(t *testing.T) {
 	s := NewStorage()
 	const goroutines = 200
@@ -184,7 +164,6 @@ func TestConcurrentReadWrite(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(goroutines * 3)
 
-	// Writers
 	for i := 0; i < goroutines; i++ {
 		go func(id int) {
 			defer wg.Done()
@@ -194,7 +173,6 @@ func TestConcurrentReadWrite(t *testing.T) {
 		}(i)
 	}
 
-	// Readers
 	for i := 0; i < goroutines; i++ {
 		go func(id int) {
 			defer wg.Done()
@@ -204,7 +182,6 @@ func TestConcurrentReadWrite(t *testing.T) {
 		}(i)
 	}
 
-	// Deleters
 	for i := 0; i < goroutines; i++ {
 		go func(id int) {
 			defer wg.Done()
@@ -217,7 +194,6 @@ func TestConcurrentReadWrite(t *testing.T) {
 	wg.Wait()
 }
 
-// TestConcurrentIncr ensures INCR is race-free under parallel access.
 func TestConcurrentIncr(t *testing.T) {
 	s := NewStorage()
 	const goroutines = 100
@@ -238,7 +214,6 @@ func TestConcurrentIncr(t *testing.T) {
 	if !ok {
 		t.Fatal("shared_counter should exist")
 	}
-	// Value must be exactly 100 (each goroutine incremented once).
 	if val != "100" {
 		t.Fatalf("expected '100', got %q (possible race condition)", val)
 	}

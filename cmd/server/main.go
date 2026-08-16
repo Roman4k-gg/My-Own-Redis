@@ -16,7 +16,6 @@ import (
 )
 
 func main() {
-	// done is closed on SIGINT/SIGTERM and stops the GC goroutine cleanly.
 	done := make(chan struct{})
 
 	db := storage.NewStorage()
@@ -31,7 +30,6 @@ func main() {
 
 	cmdHandler := handler.NewHandler(db, aofFile)
 
-	// Replay AOF to restore state after restart.
 	dummyWriter := resp.NewWriter(io.Discard)
 	if err := aofFile.Read(func(value resp.Value) {
 		_ = cmdHandler.Handle(value, dummyWriter)
@@ -54,8 +52,8 @@ func main() {
 	go func() {
 		<-sigChan
 		fmt.Println("\nShutting down gracefully...")
-		close(done)          // stop the GC goroutine
-		_ = listener.Close() // unblock Accept()
+		close(done)
+		_ = listener.Close()
 	}()
 
 	for {
@@ -63,7 +61,7 @@ func main() {
 		if err != nil {
 			select {
 			case <-done:
-				wg.Wait() // wait for in-flight connections to finish
+				wg.Wait()
 				fmt.Println("Server stopped.")
 				return
 			default:
