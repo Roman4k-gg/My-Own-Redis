@@ -7,7 +7,6 @@ import (
 	"time"
 )
 
-// errNotInteger is returned by Incr when the stored value is not an integer.
 var errNotInteger = errors.New("ERR value is not an integer or out of range")
 
 type Item struct {
@@ -57,16 +56,12 @@ func (s *Storage) Set(key, value string, ttl time.Duration) {
 	}
 }
 
-// Incr atomically increments the integer value of a key by 1.
-// If the key does not exist, it is initialized to 0 before incrementing.
-// Returns an error if the stored value is not a valid integer.
 func (s *Storage) Incr(key string) (int64, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	item := s.data[key]
 
-	// Treat expired keys as non-existent.
 	if !item.expiresAt.IsZero() && time.Now().After(item.expiresAt) {
 		delete(s.data, key)
 		item = Item{}
@@ -116,12 +111,6 @@ func (s *Storage) Exists(keys []string) int {
 	return count
 }
 
-// StartGarbageCollector starts a background goroutine that periodically removes
-// expired keys. It stops cleanly when done is closed — no goroutine leaks.
-//
-// Two-phase locking algorithm:
-//   - Phase 1 (RLock): scan for expired keys without blocking concurrent reads/writes.
-//   - Phase 2 (WLock): delete only the collected keys — minimal lock hold time.
 func (s *Storage) StartGarbageCollector(done <-chan struct{}) {
 	go func() {
 		ticker := time.NewTicker(7 * time.Second)
@@ -137,12 +126,9 @@ func (s *Storage) StartGarbageCollector(done <-chan struct{}) {
 	}()
 }
 
-// collectExpired performs one two-phase GC sweep.
 func (s *Storage) collectExpired() {
 	now := time.Now()
 
-	// Phase 1: collect expired key names under RLock.
-	// Concurrent GET/SET operations are NOT blocked during this phase.
 	s.mu.RLock()
 	var toDelete []string
 	for key, item := range s.data {
@@ -156,8 +142,6 @@ func (s *Storage) collectExpired() {
 		return
 	}
 
-	// Phase 2: delete under WLock only for the minimum required time.
-	// Re-check each key: it may have been refreshed between phase 1 and phase 2.
 	s.mu.Lock()
 	for _, key := range toDelete {
 		if item, ok := s.data[key]; ok {
